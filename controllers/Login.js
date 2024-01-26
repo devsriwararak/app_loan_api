@@ -1,6 +1,7 @@
 import pool from "../Connect.js";
 import bcrypt from "bcrypt";
 const saltRounds = 10; // จำนวนรอบการเก็บ salt
+import jwt from "jsonwebtoken";
 
 export const getAllRegister = async (req, res) => {
   try {
@@ -105,22 +106,37 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const sqlCheckPassword = `SELECT password FROM users WHERE username =   ?`;
+    const sqlCheckPassword = `SELECT id, username, password, name, status, tell, address FROM users WHERE username =   ?`;
     const [resultPassword] = await pool.query(sqlCheckPassword, [username]);
     const hashedPassword = resultPassword[0]?.password;
 
-    if(hashedPassword){
-    // ถอดรหัส
-    const isMatch = bcrypt.compareSync(password, hashedPassword);
+    console.log(resultPassword);
 
-    if (isMatch) {
-      res.status(200).json({ message: " เข้าสู่ระบบสำเร็จ" });
+    if (hashedPassword) {
+      // ถอดรหัส
+      const isMatch = bcrypt.compareSync(password, hashedPassword);
+
+      // สร้าง token
+      const secretKey = "mySecretKey";
+      const userData = { 
+        id : resultPassword[0].id,
+        username  : resultPassword[0].username ,
+        name : resultPassword[0].name ,
+        status : resultPassword[0].status , 
+        tell : resultPassword[0].tell ,
+        address : resultPassword[0].address 
+      };
+
+      const token = jwt.sign(userData, secretKey, { expiresIn: "1d" });
+
+      if (isMatch) {
+        res.status(200).json({ message: " เข้าสู่ระบบสำเร็จ" , token});
+      } else {
+        res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
+      }
+
     } else {
       res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
-    }
-    }else {
-      res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
-
     }
 
   } catch (error) {

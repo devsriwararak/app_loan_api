@@ -1,5 +1,23 @@
 import pool from "../Connect.js";
 
+export const getAllHouse = async (req, res) => {
+  try {
+    const { search } = req.query;
+    let sql = `SELECT id, name, tell, address FROM house `;
+    if (search) {
+      sql += `WHERE name LIKE '%${search}%' `;
+    } else {
+      sql += ``;
+    }
+    sql += `LIMIT 0,9`
+    const [result] = await pool.query(sql)
+    res.status(200).json(result)
+    
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 export const postHouse = async (req, res) => {
   try {
     const { name, tell, address } = req.body;
