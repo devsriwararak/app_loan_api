@@ -107,7 +107,9 @@ export const login = async (req, res) => {
 
     const sqlCheckPassword = `SELECT password FROM users WHERE username =   ?`;
     const [resultPassword] = await pool.query(sqlCheckPassword, [username]);
-    const hashedPassword = resultPassword[0].password;
+    const hashedPassword = resultPassword[0]?.password;
+
+    if(hashedPassword){
     // ถอดรหัส
     const isMatch = bcrypt.compareSync(password, hashedPassword);
 
@@ -116,6 +118,11 @@ export const login = async (req, res) => {
     } else {
       res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
     }
+    }else {
+      res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
+
+    }
+
   } catch (error) {
     console.error(error);
   }
