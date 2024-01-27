@@ -7,14 +7,15 @@ export const getAllRegister = async (req, res) => {
   try {
     const { search } = req.query;
     console.log(search);
-    let sql = `SELECT id, name, status, tell, address FROM users `;
+    let sql = `SELECT id, name, status, tell, address FROM users WHERE name <> 'admin' `;
 
     if (search) {
-      sql += `WHERE name LIKE '%${search}%' `;
+      sql += ` AND name LIKE '%${search}%' `;
     }
 
     sql += `LIMIT 0,9`;
 
+    console.log(sql);
     const [result] = await pool.query(sql);
     res.status(200).json(result);
   } catch (error) {
@@ -31,18 +32,19 @@ export const postRegister = async (req, res) => {
     const [resultCheck] = await pool.query(sqlCheck, [name]);
 
     // เข้ารหัส
-    // let hashedPassword = "";
-    // if (password) {
-    //   const salt = bcrypt.genSaltSync(saltRounds);
-    //   hashedPassword = bcrypt.hashSync(password, salt);
-    // }
+    let hashedPassword = "";
+    if (password) {
+      const salt = bcrypt.genSaltSync(saltRounds);
+      hashedPassword = bcrypt.hashSync(password, salt);
+    }
 
     if (resultCheck.length > 0) {
       res.status(400).json({ message: "มีผู้ใช้งานนี้แล้ว" });
     } else {
-      const sql = `INSERT INTO users (username, status, name, tell, address ) VALUES (?,?,?,?,?)`;
+      const sql = `INSERT INTO users (username, password, status, name, tell, address ) VALUES (?,?,?,?,?,?)`;
       const [result] = await pool.query(sql, [
         username || "",
+        hashedPassword || "" ,
         1,
         name || "",
         tell || "",
