@@ -149,7 +149,13 @@ export const postNewProcessUser = async (req, res) => {
         // INSERT PROCESS_USER_LIST
         // ID ล่าสุดที่พึ่ง insert
         const lastInsertedId = resultInsert.insertId;
-        const newPrice = price / count_day;
+        // เก่า 208  = 5000 / 24
+        // const newPrice = price / count_day;
+
+        // ใหม่ 5 = 5000 / 1000
+        //  5 * 50 = 250
+        const price01 = Number(price) / 1000
+        const newPrice = price01 * 50
 
         for (let i = 0; i < count_day; i++) {
           const newDate = moment(start_day).add(i, "days").format("YYYY-MM-DD");
