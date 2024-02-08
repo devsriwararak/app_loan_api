@@ -6,7 +6,7 @@ export const getProcessTitle = async (req, res) => {
     const { search } = req.query;
 
     let sql = `
-    SELECT  house.name, process.total, process.paid, process.overdue
+    SELECT  house.name, process.id, process.total, process.paid, process.overdue
     FROM process
     JOIN house ON process.house_id = house.id 
     `;
@@ -378,3 +378,43 @@ export const putreLoad = async (req, res) => {
     console.error(error);
   }
 };
+
+
+// Update
+export const UpdateProcess = async (req,res)=> {
+  try {
+    const {id} = req.query
+   
+    if(id){
+      const sql = `SELECT total, paid, overdue FROM process WHERE id = ? LIMIT 3 `
+      const [result] = await pool.query(sql, [id])
+      console.log(result[0]);
+      res.status(200).json(result[0])
+    }else {
+      throw new Error('ไม่พบข้อมูล')
+    }
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(error.message)
+  }
+}
+
+export const UpdateProcessUser = async (req,res)=> {
+  try {
+    const {id} = req.query
+    
+    if(id){
+      const sql = `SELECT total, paid, overdue FROM process_user WHERE id = ? LIMIT 3 `
+      const [result] = await pool.query(sql, [id])
+      console.log(result[0]);
+      res.status(200).json(result[0])
+    }else {
+      throw new Error('ไม่พบข้อมูล')
+    }
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(error.message)
+  }
+}
