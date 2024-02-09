@@ -87,7 +87,7 @@ export const getProcessUserByProcessId = async (req, res) => {
       //     }
       // }
 
-      //   const [result] = await pool.query(sql, [process_id, status]);
+      //   const [result] = await pool.query(sql, [process_id, status]); 1
 
       let values = [process_id];
 
