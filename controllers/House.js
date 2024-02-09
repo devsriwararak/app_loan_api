@@ -9,7 +9,7 @@ export const getAllHouse = async (req, res) => {
     } else {
       sql += ``;
     }
-    sql += `LIMIT 0,9`
+    // sql += `LIMIT 0,9`
     const [result] = await pool.query(sql)
     res.status(200).json(result)
     

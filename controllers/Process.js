@@ -17,7 +17,7 @@ export const getProcessTitle = async (req, res) => {
       sql += "";
     }
 
-    sql += `LIMIT 20`;
+    // sql += `LIMIT 20`;
 
     const [result] = await pool.query(sql);
     res.status(200).json(result);
