@@ -93,7 +93,7 @@ export const getProcessUserByProcessId = async (req, res) => {
 
       if (status !== undefined && status !== '') {
         if (status == 0) {
-          sql += ` AND (process_user.status = 0 OR process_user.status = 2)`;
+          sql += ` AND (process_user.status = 0 OR process_user.status = 3)`;
         } else {
           sql += ` AND process_user.status = ?`;
           values.push(status);
