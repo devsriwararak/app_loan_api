@@ -57,26 +57,56 @@ export const postNewProcess = async (req, res) => {
 export const getProcessUserByProcessId = async (req, res) => {
   try {
     const { status, process_id } = req.query;
+    console.log(req.query);
 
     let sql = `
-        SELECT process_user.price, process_user.count_day, process_user.start_day, process_user.end_day, process_user.status, process_user.total, process_user.paid, process_user.overdue,  users.name
+        SELECT process_user.id, process_user.price, process_user.count_day, process_user.start_day, process_user.end_day, process_user.status, process_user.total, process_user.paid, process_user.overdue,  users.name
         FROM process_user 
-        JOIN users ON process_user.user_id = users.id
+        LEFT JOIN users ON process_user.user_id = users.id
         WHERE process_user.process_id = ?  
         `;
 
     if (process_id) {
-      if (status) {
-        sql += ` AND process_user.status = ? `;
-      } else {
-        sql += ``;
+      // if (status) {
+      //   sql += ` AND process_user.status = ? `;
+      // } else if(status == 0){
+      //   sql += ` AND (process_user.status = ? OR process_user.status = ?)`;
+
+      // }
+
+      // else {
+      //   sql += ` ;`;
+      // }
+
+      //   if (status !== undefined) {
+      //     if (status === 0) {
+      //         sql += ` AND (process_user.status = 0 OR process_user.status = 3)`;
+      //     } else {
+      //         sql += ` AND process_user.status = ?`;
+      //         values.push(status);
+      //     }
+      // }
+
+      //   const [result] = await pool.query(sql, [process_id, status]);
+
+      let values = [process_id];
+
+      if (status !== undefined && status !== '') {
+        if (status == 0) {
+          sql += ` AND (process_user.status = 0 OR process_user.status = 3)`;
+        } else {
+          sql += ` AND process_user.status = ?`;
+          values.push(status);
+        }
       }
 
-      sql += ` LIMIT 20 `;
+      // sql += ` LIMIT 20 `;
 
-      const [result] = await pool.query(sql, [process_id, status]);
+      const [result] = await pool.query(sql, values);
+
       const newResult = result.map((item) => {
         return {
+          id: item.id,
           price: item.price,
           count_day: item.count_day,
           start_day: `${moment(item.start_day).format("DD-MM-")}${moment(
@@ -345,20 +375,19 @@ export const putreLoad = async (req, res) => {
     const sqlCheck = `SELECT paid, overdue, total FROM process_user WHERE id = ? LIMIT 3  `;
     const [resultCheck] = await pool.query(sqlCheck, [process_user_id]);
 
+    const paidTotal = Number(resultCheck[0].paid) - Number(sumNoForPay);
+    const overdueTotal = Number(resultCheck[0].overdue) - Number(newSumCount);
 
-    const paidTotal = Number(resultCheck[0].paid) - Number(sumNoForPay)  ; 
-    const overdueTotal = Number(resultCheck[0].overdue) - Number(newSumCount); 
-
-    const paidProcess = Number(resultCheckProcess[0].paid) - Number(sumNoForPay) ;
-    const overdueProcess = Number(resultCheckProcess[0].overdue) - Number(newSumCount) ;
-
-    
+    const paidProcess =
+      Number(resultCheckProcess[0].paid) - Number(sumNoForPay);
+    const overdueProcess =
+      Number(resultCheckProcess[0].overdue) - Number(newSumCount);
 
     //   SQL UPDATE PROCESS_USER
     const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
     await pool.query(sqlUpdate, [paidTotal, overdueTotal, process_user_id]);
 
-      //SQL UPDATE PROCESS
+    //SQL UPDATE PROCESS
     const sqlUpdateProcess = `UPDATE process SET paid = ?, overdue = ?  WHERE id = ?   `;
     await pool.query(sqlUpdateProcess, [
       paidProcess,
@@ -367,54 +396,49 @@ export const putreLoad = async (req, res) => {
     ]);
 
     res.status(200).json({
-      message : 'ทำรายการสำเร็จ', 
-      newSum : price,
-      mySum : newSumCount ,
-      totalSum : sumTotal
-    
-    })
-
+      message: "ทำรายการสำเร็จ",
+      newSum: price,
+      mySum: newSumCount,
+      totalSum: sumTotal,
+    });
   } catch (error) {
     console.error(error);
   }
 };
 
-
 // Update
-export const UpdateProcess = async (req,res)=> {
+export const UpdateProcess = async (req, res) => {
   try {
-    const {id} = req.query
-   
-    if(id){
-      const sql = `SELECT total, paid, overdue FROM process WHERE id = ? LIMIT 3 `
-      const [result] = await pool.query(sql, [id])
-      console.log(result[0]);
-      res.status(200).json(result[0])
-    }else {
-      throw new Error('ไม่พบข้อมูล')
-    }
-    
-  } catch (error) {
-    console.error(error);
-    res.status(500).json(error.message)
-  }
-}
+    const { id } = req.query;
 
-export const UpdateProcessUser = async (req,res)=> {
-  try {
-    const {id} = req.query
-    
-    if(id){
-      const sql = `SELECT total, paid, overdue FROM process_user WHERE id = ? LIMIT 3 `
-      const [result] = await pool.query(sql, [id])
+    if (id) {
+      const sql = `SELECT total, paid, overdue FROM process WHERE id = ? LIMIT 3 `;
+      const [result] = await pool.query(sql, [id]);
       console.log(result[0]);
-      res.status(200).json(result[0])
-    }else {
-      throw new Error('ไม่พบข้อมูล')
+      res.status(200).json(result[0]);
+    } else {
+      throw new Error("ไม่พบข้อมูล");
     }
-    
   } catch (error) {
     console.error(error);
-    res.status(500).json(error.message)
+    res.status(500).json(error.message);
   }
-}
+};
+
+export const UpdateProcessUser = async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (id) {
+      const sql = `SELECT total, paid, overdue FROM process_user WHERE id = ? LIMIT 3 `;
+      const [result] = await pool.query(sql, [id]);
+      console.log(result[0]);
+      res.status(200).json(result[0]);
+    } else {
+      throw new Error("ไม่พบข้อมูล");
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(error.message);
+  }
+};
