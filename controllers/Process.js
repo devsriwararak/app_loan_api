@@ -280,7 +280,7 @@ export const putUserList = async (req, res) => {
       let paidProcess = resultCheckProcess[0].paid;
       let overdueProcess = resultCheckProcess[0].overdue;
 
-      if (status == "1") {
+      if (status === 1) {
         // Process_User
         paidTotal = Number(paidTotal) + Number(price);
         overdueTotal = overdueTotal - price;
