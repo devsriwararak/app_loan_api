@@ -91,7 +91,7 @@ export const getProcessUserByProcessId = async (req, res) => {
 
       let values = [process_id];
 
-      if (status !== undefined && status !== '') {
+      if (status !== undefined && status !== "") {
         if (status == 0) {
           sql += ` AND (process_user.status = 0 OR process_user.status = 3)`;
         } else {
@@ -254,7 +254,6 @@ export const getUserListByProcessUserId = async (req, res) => {
 export const putUserList = async (req, res) => {
   try {
     const { id, status, price, process_user_id, process_id } = req.body;
-    console.log(req.body);
 
     // console.log(req.body);
     if (id && status) {
@@ -269,7 +268,7 @@ export const putUserList = async (req, res) => {
       ]);
 
       //   CHECK TOTAL PROCESS_USER
-      const sqlCheck = `SELECT paid, overdue, total FROM process_user WHERE id = ? LIMIT 3  `;
+      const sqlCheck = `SELECT paid, overdue, total, status FROM process_user WHERE id = ? LIMIT 3  `;
       const [resultCheck] = await pool.query(sqlCheck, [process_user_id]);
 
       //   console.log(resultCheck[0]);
@@ -280,24 +279,22 @@ export const putUserList = async (req, res) => {
       let paidProcess = resultCheckProcess[0].paid;
       let overdueProcess = resultCheckProcess[0].overdue;
 
-      if (status === 1) {
+      if (status == 1) {
         // Process_User
-        paidTotal = Number(paidTotal) + Number(price);
+        paidTotal = paidTotal + price;
         overdueTotal = overdueTotal - price;
         // Process
-        paidProcess = Number(paidProcess) + Number(price);
-        overdueProcess = Number(overdueProcess) - Number(price);
+        paidProcess = paidProcess + price;
+        overdueProcess = overdueProcess - price;
       } else {
         // Process_User
-        paidTotal = Number(paidTotal) - Number(price);
-        overdueTotal = Number(overdueTotal) + Number(price);
+        paidTotal = paidTotal - price;
+        overdueTotal = overdueTotal + price;
+
         // Process
-        paidProcess = Number(paidProcess) - Number(price);
-        overdueProcess = Number(overdueProcess) + Number(price);
+        paidProcess = paidProcess - price;
+        overdueProcess = overdueProcess + price;
       }
-      //   SQL UPDATE PROCESS_USER
-      const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
-      await pool.query(sqlUpdate, [paidTotal, overdueTotal, process_user_id]);
 
       //   SQL UPDATE PROCESS
       const sqlUpdateProcess = `UPDATE process SET paid = ?, overdue = ?  WHERE id = ?   `;
@@ -306,6 +303,38 @@ export const putUserList = async (req, res) => {
         overdueProcess,
         process_id,
       ]);
+
+      //   SQL UPDATE PROCESS_USER
+      const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
+      const [resultSqlUpdate] = await pool.query(sqlUpdate, [
+        paidTotal,
+        overdueTotal,
+        process_user_id,
+      ]);
+
+      if (resultSqlUpdate) {
+        // เช็ค ถ้า Process_user_list จ่ายหมดแล้ว ให้ process_user เปลี่ยน status เป็น 1
+        const sqlCheckUpdateProcessUserStatus = `SELECT COUNT(*) AS total_rows, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS total_status_1 
+                    FROM process_user_list 
+                    WHERE process_user_id = ?`;
+
+        const [resultCheckUpdateProcessUserStatus] = await pool.query(
+          sqlCheckUpdateProcessUserStatus,
+          [process_user_id]
+        );
+
+        const totalRows = resultCheckUpdateProcessUserStatus[0].total_rows;
+        const totalStatus1 =
+          resultCheckUpdateProcessUserStatus[0].total_status_1;
+
+        if (totalRows > 0 && totalRows == totalStatus1) {
+          const sqlUpdateProcessUserStatus = `UPDATE process_user SET status = 1 WHERE id = ?`;
+          await pool.query(sqlUpdateProcessUserStatus, [process_user_id]);
+        } else {
+          const sqlUpdateProcessUserStatus = `UPDATE process_user SET status = 0 WHERE id = ?`;
+          await pool.query(sqlUpdateProcessUserStatus, [process_user_id]);
+        }
+      }
     }
   } catch (error) {
     console.error(error);
