@@ -12,7 +12,10 @@ import reportRouter from './routes/Report.js'
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors())
+const corsOptions = {
+  origin: ['http://localhost:5173', 'https://loandata-app.netlify.app']
+};
+app.use(cors(corsOptions))
 app.use(express.json())
 
 
