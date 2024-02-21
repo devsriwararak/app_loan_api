@@ -197,10 +197,9 @@ export const postNewProcessUser = async (req, res) => {
             const sql =
               "INSERT INTO process_user_list ( price, process_user_id) VALUES ( ?, ?)";
             await pool.query(sql, [newPrice, lastInsertedId]);
-          }
-
-          res.status(200).json({ message: "บันทึกสำเร็จ" });
+          } 
         }
+        res.status(200).json({ message: "บันทึกสำเร็จ" });
       }
     } else {
       throw new Error("ไม่พบสถานที่");
