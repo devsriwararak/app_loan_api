@@ -135,8 +135,7 @@ export const getProcessUserByProcessId = async (req, res) => {
 
 export const postNewProcessUser = async (req, res) => {
   try {
-    const { process_id, user_id, price, count_day, start_day, end_day } =
-      req.body;
+    const { process_id, user_id, price, count_day } = req.body;
 
     // console.log(process_id);
 
@@ -147,14 +146,12 @@ export const postNewProcessUser = async (req, res) => {
       if (resultCheck.length > 0) {
         throw new Error("มีผู้ใช้งานนี้แล้ว");
       } else {
-        const sql = `INSERT INTO process_user (process_id, user_id, price, count_day, start_day, end_day, total, overdue) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT INTO process_user (process_id, user_id, price, count_day, total, overdue) VALUES (?, ?, ?, ?, ?, ?)`;
         const [resultInsert] = await pool.query(sql, [
           process_id,
           user_id,
           price,
           count_day,
-          start_day,
-          end_day,
           price,
           price,
         ]);
@@ -193,13 +190,13 @@ export const postNewProcessUser = async (req, res) => {
           const newPrice = price01 * 50;
 
           for (let i = 0; i < count_day; i++) {
-            const newDate = moment(start_day)
-              .add(i, "days")
-              .format("YYYY-MM-DD");
+            // const newDate = moment(start_day)
+            //   .add(i, "days")
+            //   .format("YYYY-MM-DD");
 
             const sql =
-              "INSERT INTO process_user_list (date, price, process_user_id) VALUES (?, ?, ?)";
-            await pool.query(sql, [newDate, newPrice, lastInsertedId]);
+              "INSERT INTO process_user_list ( price, process_user_id) VALUES ( ?, ?)";
+            await pool.query(sql, [newPrice, lastInsertedId]);
           }
 
           res.status(200).json({ message: "บันทึกสำเร็จ" });
@@ -261,10 +258,10 @@ export const getUserListByProcessUserId = async (req, res) => {
 
 export const putUserList = async (req, res) => {
   try {
-    const { id, status, price, process_user_id, process_id } = req.body;
+    const { id, status, price, process_user_id, process_id, date } = req.body;
 
     // console.log(req.body);
-    if (id && status) {
+    if (id && status >= 0) {
       // เช็ค index ก่อนหน้าว่า จ่ายเงินหรือยัง
       const sqlCheckProcessUserListStatus = `SELECT status, id FROM process_user_list WHERE process_user_id = ?`;
       const [resultCheckProcessUserListStatus] = await pool.query(
@@ -283,15 +280,15 @@ export const putUserList = async (req, res) => {
           if (MyId) {
             if (index == 0) {
               // INSERT SQL
-              const sql = `UPDATE process_user_list SET status = ? WHERE id = ?`;
-              await pool.query(sql, [status, id]);
+              const sql = `UPDATE process_user_list SET status = ?, date = ? WHERE id = ? `;
+              await pool.query(sql, [status, date, id]);
               return { success: true, message: "อัปเดตข้อมูลสำเร็จ" };
             } else {
               // หา INDEX น้อยกว่า
               if (index > 0 && array[index - 1].status == 1) {
                 // INSERT SQL
-                const sql = `UPDATE process_user_list SET status = ? WHERE id = ?`;
-                await pool.query(sql, [status, id]);
+                const sql = `UPDATE process_user_list SET status = ?, date = ? WHERE id = ?`;
+                await pool.query(sql, [status, date, id]);
                 return { success: true, message: "อัปเดตข้อมูลสำเร็จ" };
               } else {
                 throw new Error("ข้อมูลก่อนหน้านี้ยังไม่ชำระเงิน");
@@ -308,8 +305,8 @@ export const putUserList = async (req, res) => {
       // ถ้า UPDATE STATUS แล้ว ให้ไป UPDATE ค่าอื่นๆ ด้วย
 
       if (successUpdates.length > 0) {
-        const sql = `UPDATE process_user_list SET status = ? WHERE id = ?`;
-        await pool.query(sql, [status, id]);
+        // const sql = `UPDATE process_user_list SET status = ? WHERE id = ?`;
+        // await pool.query(sql, [status, id]);
 
         // CHECK TOTAL PROCESS
         const sqlCheckProcess = `SELECT total, paid, overdue FROM process WHERE id = ? LIMIT 3  `;
@@ -390,6 +387,8 @@ export const putUserList = async (req, res) => {
       } else {
         throw new Error("ไม่สามารถทำรายการได้");
       }
+    } else {
+      throw new Error("นอก");
     }
   } catch (error) {
     console.error(error);
@@ -407,19 +406,21 @@ export const putreLoad = async (req, res) => {
 
     const [resultCheckProcessUserList] = await pool.query(
       sqlCheckProcessUserList,
-      [process_user_id, 0]
+      [process_user_id, 1]
     );
 
     // จำนวนวันที่ยังไม่จ่าย จำนวนคงเหลืออีก xx งวด
     const countSQl = resultCheckProcessUserList.length;
-    const newDayMiddle = count_day / 2;
+    // const newDayMiddle = count_day / 2;
+    const newDayMiddle = count_day - 6;
 
-    if (countSQl <= newDayMiddle) {
+    if (countSQl >= 6) {
       // หาค่าใช้ จ่ายต่องวด
       const sumForPay = (price / 1000) * 50;
 
       // หายอดที่ยัง จ่ายไม่ครบ
-      const sumNoForPay = sumForPay * countSQl;
+      const sumNoForPayCount = sumForPay * countSQl;
+      const sumNoForPay = price - sumNoForPayCount;
 
       // คำนวณการยืมใหม่ *******************************************************************
 
@@ -434,19 +435,39 @@ export const putreLoad = async (req, res) => {
         "YYYY-MM-DD"
       );
 
+      // console.log(lastDay);
+
       // UPDATE SQL ***********************************************************************
       const sqlSelect = `SELECT id FROM process_user_list WHERE process_user_id = ? `;
       const [resultSqlSelect] = await pool.query(sqlSelect, [process_user_id]);
 
-      for (let i = 0; i < resultSqlSelect.length; i++) {
-        const newDate = moment(lastDay).add(i, "days").format("YYYY-MM-DD");
+      // หาวันที่ล่าสุด
+      let latestDate = null;
 
-       // UPDATE PROCESS_USER_LIST
-        const sqlUpdateProcessUserList = `UPDATE process_user_list SET date = ?, status = ? WHERE id = ? `;
+      for (let i = 0; i < resultCheckProcessUserList.length; i++) {
+        const data = resultCheckProcessUserList[i];
+        if (
+          data.date &&
+          (!latestDate || moment(data.date).isAfter(latestDate))
+        ) {
+          latestDate = moment(data.date);
+        }
+      }
+
+      if (latestDate) {
+        latestDate = latestDate.format("YYYY-MM-DD");
+      }
+
+      // UPDATE process_user_list
+      const sqlUpdateProcessUserList = `UPDATE process_user_list SET date = ?, status = ? WHERE id = ? `;
+
+      for (let i = 0; i < resultSqlSelect.length; i++) {
+        const data = resultSqlSelect[i];
+
         await pool.query(sqlUpdateProcessUserList, [
-          newDate,
-          0,
-          resultSqlSelect[i].id,
+          i === 0 ? latestDate : null,
+          i === 0 ? 1 : 0 ,
+          data.id,
         ]);
       }
 
@@ -462,25 +483,26 @@ export const putreLoad = async (req, res) => {
       const sqlCheck = `SELECT paid, overdue, total FROM process_user WHERE id = ? LIMIT 3  `;
       const [resultCheck] = await pool.query(sqlCheck, [process_user_id]);
 
-      console.log(resultCheck);
+      const paidTotal =
+        sumForPay * count_day -
+        (Number(resultCheck[0].paid) + Number(sumNoForPay)) +
+        sumForPay;
 
-      // const paidTotal = Number(resultCheck[0].paid) - Number(sumNoForPay);
-      // const overdueTotal = Number(resultCheck[0].overdue) - Number(newSumCount);
-      const paidTotal = (Number(resultCheck[0].paid) + Number(sumNoForPay) - (sumForPay * count_day));
       const overdueTotal =
-        Number(resultCheck[0].overdue) + Number(resultCheck[0].paid);
+        Number(resultCheck[0].overdue) +
+        Number(resultCheck[0].paid) -
+        sumForPay;
 
       const paidProcess =
-       ( Number(resultCheckProcess[0].paid) + Number(sumNoForPay) - (sumForPay * count_day));
+        sumForPay * count_day -
+        (Number(resultCheckProcess[0].paid) + Number(sumNoForPay)) +
+        sumForPay;
       const overdueProcess =
         Number(resultCheckProcess[0].overdue) +
-        Number(resultCheckProcess[0].paid);
+        Number(resultCheckProcess[0].paid) -
+        sumForPay;
 
-      // console.log(paidTotal);
-      // console.log(overdueTotal);
-      // console.log(sumNoForPay);
-
-       // SQL UPDATE PROCESS_USER
+      // SQL UPDATE PROCESS_USER
       const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
       await pool.query(sqlUpdate, [paidTotal, overdueTotal, process_user_id]);
 
@@ -501,7 +523,7 @@ export const putreLoad = async (req, res) => {
         });
       }
     } else {
-      throw new Error("จ่ายไม่ถึงครึ่งงวด ไม่สามารถทำรายการได้");
+      throw new Error("จ่ายไม่ถึง 6 งวด ไม่สามารถทำรายการได้");
     }
   } catch (error) {
     console.error(error);
