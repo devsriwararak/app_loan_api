@@ -483,24 +483,26 @@ export const putreLoad = async (req, res) => {
       const sqlCheck = `SELECT paid, overdue, total FROM process_user WHERE id = ? LIMIT 3  `;
       const [resultCheck] = await pool.query(sqlCheck, [process_user_id]);
 
-      const paidTotal =
-        sumForPay * count_day -
-        (Number(resultCheck[0].paid) + Number(sumNoForPay)) +
-        sumForPay;
+      // const paidTotal =
+      //   sumForPay * count_day -
+      //   (Number(resultCheck[0].paid) + Number(sumNoForPay)) +
+      //   sumForPay;
 
-      const overdueTotal =
+      const paidTotal = sumForPay;
+
+      const overdueTotal = Number(resultCheckProcess[0].paid)
         Number(resultCheck[0].overdue) +
         Number(resultCheck[0].paid) -
         sumForPay;
 
-      const paidProcess =
-        sumForPay * count_day -
-        (Number(resultCheckProcess[0].paid) + Number(sumNoForPay)) +
-        sumForPay;
+
+
+      const paidProcess = ((sumNoForPay + resultCheckProcess[0].paid ) - price) + sumForPay;
       const overdueProcess =
         Number(resultCheckProcess[0].overdue) +
         Number(resultCheckProcess[0].paid) -
         sumForPay;
+
 
       // SQL UPDATE PROCESS_USER
       const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
