@@ -1,10 +1,13 @@
 import express from 'express'
 import { authenticationToken } from '../Middleware/Auth.js'
-import { UpdateProcess, UpdateProcessUser, getProcessTitle, getProcessUserByProcessId, getUserListByProcessUserId, postNewProcess, postNewProcessUser, putProcessUser, putUserList, putreLoad } from '../controllers/Process.js'
+import { UpdateProcess, UpdateProcessUser, deleteProcess, getProcessTitle, getProcessUserByProcessId, getUserListByProcessUserId, postNewProcess, postNewProcessUser, putProcessUser, putUserList, putreLoad, updateProcess } from '../controllers/Process.js'
 const route = express.Router()
 
-route.get('/title', authenticationToken, getProcessTitle )
+// Process
+route.get('/', authenticationToken, getProcessTitle )
 route.post('/', authenticationToken, postNewProcess )
+route.put('/', authenticationToken , updateProcess )
+route.delete('/:id', authenticationToken, deleteProcess)
 
 // users
 route.get('/user', authenticationToken, getProcessUserByProcessId)

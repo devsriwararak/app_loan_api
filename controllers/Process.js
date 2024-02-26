@@ -6,18 +6,18 @@ export const getProcessTitle = async (req, res) => {
     const { search } = req.query;
 
     let sql = `
-    SELECT  house.name, process.id, process.total, process.paid, process.overdue
+    SELECT  process.name, process.tell, process.address,  process.id, process.total, process.paid, process.overdue
     FROM process
-    JOIN house ON process.house_id = house.id 
     `;
 
     if (search) {
-      sql += `WHERE house.name LIKE '%${search}%' `;
+      sql += `WHERE name LIKE '%${search}%' `;
     } else {
-      sql += "";
+      
+      sql += ` LIMIT 20`;
+
     }
 
-    // sql += `LIMIT 20`;
 
     const [result] = await pool.query(sql);
     res.status(200).json(result);
@@ -28,29 +28,80 @@ export const getProcessTitle = async (req, res) => {
 
 export const postNewProcess = async (req, res) => {
   try {
-    const { house_id } = req.body;
+    const { name, tell ,address } = req.body;
 
-    if (house_id) {
+    if (name && tell) {
       // เช็ค ค่าซ้ำ
-      const sqlCheck = `SELECT id FROM process WHERE house_id = ? LIMIT 1`;
-      const [resultCheck] = await pool.query(sqlCheck, [house_id]);
+      const sqlCheck = `SELECT id FROM process WHERE name = ? LIMIT 1`;
+      const [resultCheck] = await pool.query(sqlCheck, [name]);
 
       if (resultCheck.length > 0) {
         throw new Error("สถานที่นี้ถูกสร้างไปแล้ว");
         console.log(111);
       } else {
-        const sql = `INSERT INTO process (house_id) VALUES (?)`;
-        await pool.query(sql, [house_id]);
+        const sql = `INSERT INTO process (name, tell, address) VALUES (?, ?, ?)`;
+        await pool.query(sql, [ name, tell ,address]);
         res.status(200).json({ message: "บันทึกสำเร็จ" });
       }
     } else {
-      throw new Error("ไม่พบ สถานที่นี้");
+      throw new Error("ไม่พบชื่อและเบอร์โทรลูกค้า");
     }
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
+
+export const updateProcess = async (req,res)=> {
+  try {
+    const { id, name, tell, address } = req.body;
+
+    // Check Username
+    const sqlScheck = `SELECT name FROM process WHERE name = ? `;
+    const [resultCheck] = await pool.query(sqlScheck, [name]);
+
+    if (resultCheck[0]) {
+      // มี name ในระบบแล้ว
+      // เช็ค name กับ id
+      const sqlCheckMyid = `SELECT name FROM process WHERE id = ? AND name = ?`;
+      const [resultCheckMyId] = await pool.query(sqlCheckMyid, [id, name]);
+
+      if (resultCheckMyId.length > 0) {
+        // username ตรงกับ ID แสดงว่าคือ เราเอง แก้ได้เลย
+        const sql = `UPDATE process SET  name = ?, tell = ?, address = ? WHERE id = ?`;
+        await pool.query(sql, [name, tell, address, id]);
+        res.status(200).json({ message: "แก้ไขสำเร็จ" });
+      } else {
+        // ไม่ตรงกับ ID เรา แสดงว่าเป็น username คนอื่น ไม่ให้ใช้นะ
+        res.status(400).json({ message: "มีผู้ใช้งานนี้แล้ว" });
+      }
+    } else {
+      // ยังไม่เคยมี Username ในระบบ
+      const sql = `UPDATE process SET  name = ?, tell = ?, address = ? WHERE id = ?`;
+      await pool.query(sql, [name, tell, address, id]);
+      res.status(200).json({ message: "แก้ไขสำเร็จ !" });
+    }
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+}
+
+export const deleteProcess = async (req,res) => {
+  try {
+    const { id } = req.params;
+    if (id) {
+      const sql = `DELETE FROM process WHERE id = ? `;
+      await pool.query(sql, [id]);
+      res.status(200).json({ message: "ทำรายการลบสำเร็จ !!" });
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+
 
 // Users
 

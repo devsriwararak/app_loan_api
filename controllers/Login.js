@@ -5,55 +5,65 @@ import jwt from "jsonwebtoken";
 
 export const getAllRegister = async (req, res) => {
   try {
-    const { search } = req.query;
-    console.log(search);
-    let sql = `SELECT id, name, status, tell, address FROM users WHERE name <> 'admin' `;
+    const { process_id, search } = req.query;
 
-    if (search) {
-      sql += ` AND name LIKE '%${search}%' `;
+    if (process_id) {
+      let sql = `SELECT id, name, status, tell, address FROM users WHERE name <> 'admin' AND process_id = ?  `;
+
+      if (search) {
+        sql += ` AND name LIKE '%${search}%' `;
+      } else {
+        sql += `LIMIT 0,9`;
+      }
+
+      const [result] = await pool.query(sql, [process_id]);
+      res.status(200).json(result);
+    } else {
+      throw new Error("ไม่พบข้อมูลสถานที่");
     }
-
-    sql += `LIMIT 0,9`;
-
-    console.log(sql);
-    const [result] = await pool.query(sql);
-    res.status(200).json(result);
   } catch (error) {
     console.error(error);
+    res.status(500).json(error.message);
   }
 };
 
 export const postRegister = async (req, res) => {
   try {
-    const { username, password, name, tell, address } = req.body;
+    const { username, password, name, tell, address, process_id } = req.body;
 
-    // Check username
-    const sqlCheck = `SELECT name FROM users WHERE name = ?`;
-    const [resultCheck] = await pool.query(sqlCheck, [name]);
+    if (process_id) {
+      // Check username ว่าบ้านนี้มีแล้วยัง
+      const sqlCheck = `SELECT name FROM users WHERE name = ? AND process_id = ?`;
+      const [resultCheck] = await pool.query(sqlCheck, [name, process_id]);
 
-    // เข้ารหัส
-    let hashedPassword = "";
-    if (password) {
-      const salt = bcrypt.genSaltSync(saltRounds);
-      hashedPassword = bcrypt.hashSync(password, salt);
-    }
+      // เข้ารหัส
+      let hashedPassword = "";
+      if (password) {
+        const salt = bcrypt.genSaltSync(saltRounds);
+        hashedPassword = bcrypt.hashSync(password, salt);
+      }
 
-    if (resultCheck.length > 0) {
-      res.status(400).json({ message: "มีผู้ใช้งานนี้แล้ว" });
+      if (resultCheck.length > 0) {
+        res.status(400).json({ message: "มีผู้ใช้งานนี้แล้ว" });
+      } else {
+        const sql = `INSERT INTO users (username, password, status, name, tell, address, process_id ) VALUES (?,?,?,?,?,?, ?)`;
+        const [result] = await pool.query(sql, [
+          username || "",
+          hashedPassword || "",
+          1,
+          name || "",
+          tell || "",
+          address || "",
+          process_id,
+        ]);
+        res.status(200).json({ message: "บันทึกสำเร็จ !!" });
+      }
     } else {
-      const sql = `INSERT INTO users (username, password, status, name, tell, address ) VALUES (?,?,?,?,?,?)`;
-      const [result] = await pool.query(sql, [
-        username || "",
-        hashedPassword || "" ,
-        1,
-        name || "",
-        tell || "",
-        address || "",
-      ]);
-      res.status(200).json({ message: "บันทึกสำเร็จ !!" });
+      throw new Error("ไม่พบสถานที่");
     }
   } catch (error) {
     console.error(error);
+    res.status(500).json(error.message);
   }
 };
 
@@ -120,27 +130,25 @@ export const login = async (req, res) => {
 
       // สร้าง token
       const secretKey = "mySecretKey";
-      const userData = { 
-        id : resultPassword[0].id,
-        username  : resultPassword[0].username ,
-        name : resultPassword[0].name ,
-        status : resultPassword[0].status , 
-        tell : resultPassword[0].tell ,
-        address : resultPassword[0].address 
+      const userData = {
+        id: resultPassword[0].id,
+        username: resultPassword[0].username,
+        name: resultPassword[0].name,
+        status: resultPassword[0].status,
+        tell: resultPassword[0].tell,
+        address: resultPassword[0].address,
       };
 
       const token = jwt.sign(userData, secretKey, { expiresIn: "1d" });
 
       if (isMatch) {
-        res.status(200).json({ message: " เข้าสู่ระบบสำเร็จ" , token});
+        res.status(200).json({ message: " เข้าสู่ระบบสำเร็จ", token });
       } else {
         res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
       }
-
     } else {
       res.status(401).json({ message: " ไม่พบผู้ใช้งานในระบบ" });
     }
-
   } catch (error) {
     console.error(error);
   }
