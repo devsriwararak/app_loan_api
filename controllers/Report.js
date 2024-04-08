@@ -116,17 +116,20 @@ export const ReportUserReload = async (req, res) => {
       let sqlCheck = `SELECT 
       users.name AS user , 
       process_user.price AS price ,
-      process_user.count_day AS count_day , 
       story_reload.price_pay AS price_pay , 
       DATE_FORMAT(story_reload.date, '%Y-%m-%d') AS date,
       story_reload.total_sum AS total_sum ,
       story_reload.qty_overpay AS  qty_overpay ,
       process_user.id AS process_user_id ,
-      story_reload.id AS id
+      story_reload.id AS id , 
+      COUNT(story_reload_list.id) AS count_day
+
       FROM story_reload
       LEFT JOIN process_user ON story_reload.process_user_id = process_user.id
       LEFT JOIN users ON process_user.user_id = users.id
+      LEFT JOIN story_reload_list ON story_reload.id = story_reload_list.story_reload_id
       WHERE process_user.process_id = ? 
+    
       `;
 
       if (date && search) {
@@ -138,6 +141,8 @@ export const ReportUserReload = async (req, res) => {
       } else {
         sqlCheck += ` `;
       }
+
+      sqlCheck += `   GROUP BY   users.name, process_user.price, process_user.count_day, story_reload.price_pay, story_reload.date, story_reload.total_sum, story_reload.qty_overpay, process_user.id, story_reload.id `
 
       const [resultCheck] = await pool.query(sqlCheck, [process_id]);
       // console.log(resultCheck);
