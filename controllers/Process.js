@@ -393,7 +393,7 @@ export const getUserListByProcessUserId = async (req, res) => {
             .format("YYYY")}`,
           price: item.price,
           status: item.status,
-          status_count : item.status_count
+          status_count: item.status_count,
         };
       });
 
@@ -742,12 +742,13 @@ export const putreLoad = async (req, res) => {
   try {
     const { process_user_id, process_id, price, count_day } = req.body;
 
-    const sqlCheckProcessUserList = `SELECT  id, date, price FROM process_user_list WHERE process_user_id = ? AND status = ? ORDER BY date ASC  `;
+    const sqlCheckProcessUserList = `SELECT  id,  DATE_FORMAT(date, '%Y-%m-%d') AS date , price FROM process_user_list WHERE process_user_id = ? AND status = ? ORDER BY date ASC  `;
 
     const [resultCheckProcessUserList] = await pool.query(
       sqlCheckProcessUserList,
       [process_user_id, 1]
     );
+
 
     // จำนวนวันที่ยังไม่จ่าย จำนวนคงเหลืออีก xx งวด
     const countSQl = resultCheckProcessUserList.length;
@@ -802,12 +803,31 @@ export const putreLoad = async (req, res) => {
         latestDate = latestDate.format("YYYY-MM-DD");
       }
 
+      // บันทึกข้อมูล รียอด ลงใน ประวัติรียอด
+      const sqlStoryReload = `INSERT INTO story_reload (price_pay, date, total_sum, qty_overpay, process_user_id) VALUES (?, CURDATE(), ?, ?, ?)`;
+      const [resultStoryReload] = await pool.query(sqlStoryReload, [
+        paySum,
+        calculate,
+        newPaySum,
+        process_user_id,
+      ]);
+
+      const lastInsertedId = resultStoryReload.insertId;
+      // บันทึกข้อมูล ประวัติรียอดแบบ list
+      for (let i = 0; i < resultCheckProcessUserList.length; i++) {
+        const sqlUpdateStoryReloadList = `INSERT INTO story_reload_list (story_reload_id, date, price) VALUES (?, ?, ?)  `;
+        await pool.query(sqlUpdateStoryReloadList, [
+          lastInsertedId,
+          resultCheckProcessUserList[i].date,
+          resultCheckProcessUserList[i].price,
+        ]);
+      }
+
       // UPDATE process_user_list
       const sqlUpdateProcessUserList = `UPDATE process_user_list SET date = ?, status = ? , price = ? WHERE id = ? `;
 
       for (let i = 0; i < resultSqlSelect.length; i++) {
         const data = resultSqlSelect[i];
-
         await pool.query(sqlUpdateProcessUserList, [
           i === 0 ? latestDate : null,
           i === 0 ? 1 : 0,
@@ -838,8 +858,8 @@ export const putreLoad = async (req, res) => {
       const overdueProcess =
         Number(resultCheckProcess[0].overdue + paySum) - sumForPay;
 
-      console.log(`paidProcess = `, paidProcess);
-      console.log(`resultCheckProcess = `, overdueProcess);
+      // console.log(`paidProcess = `, paidProcess);
+      // console.log(`resultCheckProcess = `, overdueProcess);
 
       // SQL UPDATE PROCESS_USER
       const sqlUpdate = `UPDATE process_user SET paid = ?, overdue = ?  WHERE id = ?   `;
@@ -860,6 +880,8 @@ export const putreLoad = async (req, res) => {
           totalSum: calculate,
           qty_overpay: newPaySum || 0,
         });
+
+
       }
     } else {
       throw new Error("จ่ายไม่ถึง 6 งวด ไม่สามารถทำรายการได้");
@@ -899,7 +921,7 @@ export const UpdateProcessUser = async (req, res) => {
 
       const sumForPay = (result[0].total / 1000) * 50;
       const sumTotal = sumForPay * result[0].count_day;
-      const newOverdue = sumTotal - result[0].paid
+      const newOverdue = sumTotal - result[0].paid;
 
       const data = [];
       for (const item of result) {
@@ -907,18 +929,15 @@ export const UpdateProcessUser = async (req, res) => {
         const [resultCheck] = await pool.query(sqlCheck, [item.id, 1]);
         const newItem = {
           id: item.id,
-          total : item.total , 
+          total: item.total,
           newTotal: sumTotal,
           pay_date: resultCheck[0].pay_date,
-          count_day : result[0].count_day,
-          overdue : newOverdue,
-          paid : result[0].paid
-          
+          count_day: result[0].count_day,
+          overdue: newOverdue,
+          paid: result[0].paid,
         };
         data.push(newItem);
       }
-
-      console.log('test',data[0]);
 
       res.status(200).json(data[0]);
     } else {
