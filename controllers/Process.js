@@ -370,7 +370,9 @@ export const putProcessUser = async (req, res) => {
         let sumCountDay = 0;
         let textStatus = "";
 
-        if (date > cuontDay || price) {
+        console.log(`cuontDay :`, cuontDay);
+
+        if (date > cuontDay ) {
           sumCountDay = date - cuontDay;
           textStatus = "INSERT";
         } else if (date < cuontDay) {
@@ -382,6 +384,7 @@ export const putProcessUser = async (req, res) => {
 
         // ลงที่ INSERT
         if (textStatus === "INSERT") {
+          console.log(111);
           for (let i = 0; i < sumCountDay; i++) {
             const sql = `INSERT INTO process_user_list (process_user_id) VALUES (?)`;
             await pool.query(sql, [id]);
@@ -394,13 +397,13 @@ export const putProcessUser = async (req, res) => {
 
         // ลงที่ DELETE
         if (textStatus === "DELETE") {
+          console.log(222);
           // หา id สุดท้าย (ตามจำนวนที่จะลบก่อน)
           const sqlCheckLastId = `SELECT id FROM process_user_list WHERE process_user_id = ? ORDER BY id DESC LIMIT ?`;
           const [resultCheckLastId] = await pool.query(sqlCheckLastId, [
             id,
             sumCountDay,
           ]);
-          ลบ;
           for (const row of resultCheckLastId) {
             const deleteSql = `DELETE FROM process_user_list WHERE id = ?`;
             await pool.query(deleteSql, [row.id]);
